@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="es" class="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BookMind — Biblioteca inteligente</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{primary:'#7257f5',accent:'#d946ef'}}}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.
+js';</script>
+<script src="https://cdn.jsdelivr.net/npm/epubjs/dist/epub.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+*{font-family:Inter,system-ui,sans-serif}body{transition:background .2s,color .2s}
+.dark body{background:#0b0e14;color:#e7eaf2}.light body{background:#f5f6fb;color:#202438}
+.dark .surface{background:#121722;border-color:#252c3b}.light .surface{background:#fff;border-color:#e5e7ef}
+.dark .muted{color:#9ba5ba}.light .muted{color:#697087}
+.navbtn{display:flex;align-items:center;gap:.75rem;width:100%;padding:.75rem .9rem;border-radius:.8rem;text-align:left;
+color:#9ba5ba}
+.navbtn.active{background:linear-gradient(110deg,#7257f5,#8a54dc);color:white;box-shadow:0 8px 24px #7257f533}
+.bookcover{background:linear-gradient(145deg,#282143,#5b4bb7);color:white}
+input,textarea,select{outline:none}.dark input,.dark textarea,.dark select{background:#0c1018;color:#e7eaf2;border-
+color:#30384a}.light input,.light textarea,.light select{background:#fff;color:#202438;border-color:#dce0ea}
+button:disabled{opacity:.55;cursor:not-allowed}#pdfCanvas{max-width:100%;height:auto;margin:auto;box-shadow:0 8px 35px
+#0002}
+</style>
+</head>
+<body class="min-h-screen">
+<div class="min-h-screen flex">
+<aside class="hidden md:flex w-64 flex-col p-4 border-r surface min-h-screen sticky top-0 h-screen">
+<button class="flex items-center gap-3 px-2 py-4 mb-6" onclick="showTab('biblioteca')"><span class="w-11 h-11 rounded-
+2xl bg-gradient-to-br from-primary to-accent text-white grid place-items-center text-2xl">■</span><span class="text-
+left"><b class="block text-lg">BookMind</b><small class="muted">Inteligencia de lectura</small></span></button>
+<nav class="space-y-2">
+<button class="navbtn active" data-tab="biblioteca" onclick="showTab('biblioteca')">■ <span>Biblioteca</span></
+button>
+<button class="navbtn" data-tab="lectura" onclick="showTab('lectura')">■ <span>Lectura</span></button>
+<button class="navbtn" data-tab="estudio" onclick="showTab('estudio')">✧ <span>Estudio e IA</span></button>
+<button class="navbtn" data-tab="apuntes" onclick="showTab('apuntes')">✎ <span>Apuntes</span></button>
+<button class="navbtn" data-tab="tarjetas" onclick="showTab('tarjetas')">■ <span>Tarjetas</span></button>
+<button class="navbtn" data-tab="ajustes" onclick="showTab('ajustes')">■ <span>Configuración</span></button>
+</nav>
+<div class="mt-auto surface border rounded-2xl p-4"><div class="font-semibold mb-1">✦ IA con Gemini</div><p
+class="text-xs muted mb-3">Genera preguntas desde el contenido de tus libros.</p><button onclick="showTab('ajustes')"
+class="w-full rounded-xl bg-primary text-white py-2 text-sm">Configurar API</button></div>
+<button id="themeSide" onclick="toggleTheme()" class="mt-4 navbtn">■ <span>Cambiar tema claro/oscuro</span></button>
+</aside>
+<main class="flex-1 min-w-0">
+<header class="sticky top-0 z-20 border-b surface px-4 md:px-8 py-3 flex items-center gap-3 justify-between">
+<div class="flex items-center gap-3"><span class="md:hidden text-primary font-extrabold text-xl">BookMind</span><input
+id="search" class="border rounded-xl px-3 py-2 text-sm w-36 sm:w-64" placeholder="Buscar libros..."
+oninput="renderBooks()"></div>
+<div class="flex gap-2 items-center"><button class="border rounded-xl px-3 py-2 text-sm" onclick="toggleTheme()"
+title="Cambiar tema">■ / ■</button><button class="rounded-xl bg-primary text-white px-4 py-2 text-sm font-semibold"
+onclick="document.getElementById('fileInput').click()">■ <span class="hidden sm:inline">Añadir libro</span></button></
+div>
+</header>
+<div class="md:hidden flex gap-1 overflow-x-auto p-2 border-b surface" id="mobileNav">
+<button class="navbtn active !w-auto whitespace-nowrap" data-tab="biblioteca" onclick="showTab(
+'biblioteca')">Biblioteca</button><button class="navbtn !w-auto whitespace-nowrap" data-tab="lectura" onclick="showTab(
+'lectura')">Lectura</button><button class="navbtn !w-auto whitespace-nowrap" data-tab="estudio" onclick="showTab(
+'estudio')">Estudio</button><button class="navbtn !w-auto whitespace-nowrap" data-tab="apuntes" onclick="showTab(
+'apuntes')">Apuntes</button><button class="navbtn !w-auto whitespace-nowrap" data-tab="tarjetas" onclick="showTab(
+'tarjetas')">Tarjetas</button><button class="navbtn !w-auto whitespace-nowrap" data-tab="ajustes" onclick="showTab(
+'ajustes')">Ajustes</button>
+</div>
+<div class="p-4 md:p-8 max-w-7xl mx-auto">
+<section id="tab-biblioteca" class="tab">
+<div class="flex flex-wrap justify-between gap-4 items-end mb-7"><div><p class="text-primary text-sm font-semibold mb-
+2">TU ESPACIO DE LECTURA</p><h1 class="text-3xl font-extrabold">Mi biblioteca</h1><p class="muted mt-2">Tus libros,
+apuntes y preguntas en un solo lugar.</p></div><button onclick="document.getElementById('fileInput').click()"
+class="rounded-xl bg-primary text-white px-4 py-3 font-semibold">■ Importar PDF / ePub</button></div>
+<div class="grid sm:grid-cols-3 gap-3 mb-7"><div class="surface border rounded-2xl p-4"><p class="muted text-
+sm">Libros importados</p><b id="bookCount" class="text-2xl">0</b></div><div class="surface border rounded-2xl p-4"><p
+class="muted text-sm">Preguntas creadas</p><b id="questionCount" class="text-2xl">0</b></div><div class="surface border
+rounded-2xl p-4"><p class="muted text-sm">Formato compatible</p><b class="text-2xl">PDF · ePub</b></div></div>
+<div class="flex gap-2 mb-5 flex-wrap"><button class="filter rounded-full bg-primary text-white px-4 py-2 text-sm"
+data-filter="todos" onclick="setFilter('todos',this)">Todos</button><button class="filter rounded-full border px-4 py-2
+text-sm" data-filter="PDF" onclick="setFilter('PDF',this)">PDF</button><button class="filter rounded-full border px-4
+py-2 text-sm" data-filter="ePub" onclick="setFilter('ePub',this)">ePub</button></div>
+<div id="booksGrid" class="grid sm:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+<div id="empty" class="hidden surface border rounded-2xl p-10 text-center mt-4"><div class="text-5xl mb-4">■</div><h2
+class="text-xl font-bold">Tu biblioteca empieza aquí</h2><p class="muted mt-2 mb-5">Importa un PDF o ePub. BookMind
+guardará el libro en este navegador.</p><button class="bg-primary text-white rounded-xl px-5 py-3" onclick="document.
+getElementById('fileInput').click()">Elegir archivo</button></div>
+</section>
+<section id="tab-lectura" class="tab hidden"><div class="mb-5"><h1 class="text-3xl font-extrabold">Lectura</h1><p
+class="muted mt-2">Abre un libro de tu biblioteca para continuar.</p></div><div class="surface border rounded-2xl p-4
+mb-4 flex flex-wrap gap-3 items-center justify-between"><b id="readerTitle">Ningún libro abierto</b><div class="flex
+items-center gap-2"><button onclick="changePage(-1)" class="border rounded-lg px-3 py-2">← Anterior</button><span
+id="pageInfo" class="muted text-sm">—</span><button onclick="changePage(1)" class="border rounded-lg px-3 py-
+2">Siguiente →</button></div></div><div id="readerEmpty" class="surface border rounded-2xl p-8 text-center
+muted">Selecciona un libro en Biblioteca y pulsa “Leer”.</div><div id="pdfStage" class="hidden surface border rounded-
+2xl p-3 sm:p-6 text-center"><canvas id="pdfCanvas"></canvas></div><div id="epubStage" class="hidden surface border
+rounded-2xl p-2"><div id="epubViewer" style="height:70vh;background:white"></div></div><p id="readerError" class="text-
+red-500 mt-3 text-sm"></p></section>
+<section id="tab-estudio" class="tab hidden"><div class="mb-6"><p class="text-primary text-sm font-semibold">APRENDER
+ACTIVAMENTE</p><h1 class="text-3xl font-extrabold mt-2">Estudio e IA</h1><p class="muted mt-2">Las preguntas se generan
+a partir del texto extraído de tu libro, no de ejemplos inventados.</p></div><div class="surface border rounded-2xl p-5
+mb-5"><div class="flex flex-wrap justify-between gap-3 items-center"><div><h2 class="font-bold text-lg">Preguntas de
+comprensión</h2><p id="studyBookName" class="muted text-sm mt-1">Selecciona un libro para estudiar.</p></div><button
+id="generateBtn" onclick="generateQuestions()" class="bg-primary text-white rounded-xl px-4 py-3 font-semibold">✦
+Generar preguntas con IA</button></div><p id="aiStatus" class="muted text-sm mt-3"></p></div><div id="questionsList"
+class="space-y-3"></div></section>
+<section id="tab-apuntes" class="tab hidden"><h1 class="text-3xl font-extrabold mb-2">Apuntes</h1><p class="muted mb-
+5">Notas guardadas por libro.</p><div class="surface border rounded-2xl p-5"><label class="block text-sm font-semibold
+mb-2" for="notesBook">Libro</label><select id="notesBook" class="border rounded-xl p-3 w-full mb-4" onchange="loadNotes(
+)"></select><textarea id="notesText" class="border rounded-xl p-4 w-full min-h-64" placeholder="Escribe aquí tus ideas,
+citas y resúmenes..." oninput="saveNotes()"></textarea><p id="notesStatus" class="muted text-xs mt-2">Los apuntes se
+guardan automáticamente en este navegador.</p></div></section>
+<section id="tab-tarjetas" class="tab hidden"><h1 class="text-3xl font-extrabold mb-2">Tarjetas de estudio</h1><p
+class="muted mb-5">Convierte preguntas generadas en repasos rápidos.</p><div id="flashcards" class="grid md:grid-cols-2
+gap-4"></div></section>
+<section id="tab-ajustes" class="tab hidden"><h1 class="text-3xl font-extrabold mb-2">Configuración</h1><p class="muted
+mb-6">Personaliza la apariencia y conecta la IA.</p><div class="surface border rounded-2xl p-5 mb-5"><h2 class="font-
+bold text-lg mb-2">Apariencia</h2><p class="muted text-sm mb-4">Elige entre modo claro y oscuro. La preferencia se
+conserva.</p><div class="flex gap-3"><button onclick="setTheme('light')" class="border rounded-xl px-4 py-3">■ Modo
+claro</button><button onclick="setTheme('dark')" class="border rounded-xl px-4 py-3">■ Modo oscuro</button></div></
+div><div class="surface border rounded-2xl p-5"><h2 class="font-bold text-lg mb-2">Gemini API</h2><p class="muted text-
+sm mb-4">Necesitas una clave de Google AI Studio. Se guarda solo en este navegador; no la compartas ni publiques este
+archivo con tu clave incluida.</p><label class="block text-sm font-semibold mb-2" for="apiKey">Clave API</label><input
+id="apiKey" type="password" autocomplete="off" placeholder="Pega tu clave de Gemini" class="border rounded-xl p-3 w-
+full mb-3"><div class="flex flex-wrap gap-3"><button onclick="saveApiKey()" class="bg-primary text-white rounded-xl px-
+4 py-3">Guardar clave</button><button onclick="clearApiKey()" class="border rounded-xl px-4 py-3">Borrar clave</
+button><a class="text-primary underline self-center text-sm" href="https://aistudio.google.com/app/apikey"
+target="_blank" rel="noopener">Obtener clave de Google AI Studio ■</a></div><p id="apiStatus" class="muted text-sm mt-
+3"></p></div><p class="muted text-xs mt-5">Privacidad: tus archivos se guardan localmente en este navegador. Al generar
+preguntas, el texto extraído se envía a la API de Gemini de Google.</p></section>
+</div>
+</main>
+</div>
+<input id="fileInput" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip" multiple class="hidden">
+<div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-gray-900 text-white px-5 py-3 rounded-xl shadow-xl
+hidden z-50 text-sm"></div>
+<script>
+const DB_NAME='bookmind-db', STORE='books';
+let db, books=[], activeBookId=null, activeFilter='todos', pdfDoc=null, pdfPage=1, epubBook=null, epubRendition=null,
+busy=false;
+const $=id=>document.getElementById(id);
+function toast(msg){const t=$('toast');t.textContent=msg;t.classList.remove('hidden');clearTimeout(toast.timer);toast.
+timer=setTimeout(()=>t.classList.add('hidden'),3500)}
+function openDB(){return new Promise((resolve,reject)=>{const req=indexedDB.open(DB_NAME,1);req.onupgradeneeded=()=>req.
+result.createObjectStore(STORE,{keyPath:'id'});req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.
+error)})}
+function storeBook(book){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.
+objectStore(STORE).put(book);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function deleteStored(id){return new Promise((resolve,reject)=>{const tx=db.transaction(STORE,'readwrite');tx.
+objectStore(STORE).delete(id);tx.oncomplete=resolve;tx.onerror=()=>reject(tx.error)})}
+function loadStored(){return new Promise((resolve,reject)=>{const req=db.transaction(STORE).objectStore(STORE).getAll();
+req.onsuccess=()=>resolve(req.result);req.onerror=()=>reject(req.error)})}
+function saveMeta(){localStorage.setItem('bookmind-theme',document.documentElement.classList.contains('dark')?'dark':
+'light')}
+function setTheme(theme){document.documentElement.classList.toggle('dark',theme==='dark');document.documentElement.
+classList.toggle('light',theme==='light');saveMeta()}
+function toggleTheme(){setTheme(document.documentElement.classList.contains('dark')?'light':'dark')}
+function showTab(tab){document.querySelectorAll('.tab').forEach(x=>x.classList.add('hidden'));$('tab-'+tab).classList.
+remove('hidden');document.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('active',x.dataset.tab===tab));
+if(tab==='apuntes')refreshNotesSelect();if(tab==='tarjetas')renderFlashcards();if(tab==='estudio')renderQuestions()}
+function setFilter(f,btn){activeFilter=f;document.querySelectorAll('.filter').forEach(b=>{b.classList.remove('bg-
+primary','text-white');b.classList.add('border')});btn.classList.add('bg-primary','text-white');btn.classList.remove(
+'border');renderBooks()}
+function escapeHtml(s=''){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":
+'&#39;'}[c]))}
+function renderBooks(){const q=$('search').value.toLowerCase(),list=books.filter(b=>(activeFilter==='todos'||b.
+type===activeFilter)&&(`${b.title} ${b.author||''}`).toLowerCase().includes(q));$('booksGrid').innerHTML=list.map(
+b=>`<article class="surface border rounded-2xl p-4 hover:-translate-y-1 transition-transform"><div class="bookcover h-
+40 rounded-xl p-4 flex flex-col justify-between mb-4"><span class="text-xs opacity-80">${b.type}</span><div><div
+class="text-2xl font-extrabold leading-tight">${escapeHtml(b.title.slice(0,55))}</div><div class="text-sm opacity-80 mt-
+2">${escapeHtml(b.author||'Autor desconocido')}</div></div></div><h3 class="font-bold truncate">${escapeHtml(b.title)}</
+h3><p class="muted text-sm mt-1">${b.questions?.length||0} preguntas · ${b.type}</p><div class="flex gap-2 mt-
+4"><button class="flex-1 bg-primary text-white rounded-lg py-2 text-sm" onclick="openBook('${b.id}')">Leer</
+button><button class="flex-1 border rounded-lg py-2 text-sm" onclick="studyBook('${b.id}')">Estudiar</button><button
+class="border rounded-lg px-3" title="Eliminar libro" onclick="removeBook('${b.id}')">×</button></div></article>`).join(
+'');$('empty').classList.toggle('hidden',books.length>0);$('bookCount').textContent=books.length;$('questionCount').
+textContent=books.reduce((n,b)=>n+(b.questions?.length||0),0)}
+function extractPdf(file){return new Promise(async(resolve,reject)=>{try{const data=await file.arrayBuffer(),doc=await
+pdfjsLib.getDocument({data}).promise;let text='';for(let i=1;i<=doc.numPages;i++){const p=await doc.getPage(i),c=await
+p.getTextContent();text+=c.items.map(x=>x.str).join(' ')+'\\n';}resolve({data:new Uint8Array(data),text,pages:doc.
+numPages})}catch(e){reject(e)}})}
+async function extractEpub(file){const buf=await file.arrayBuffer(),book=ePub(buf);await book.ready;let text='';const
+items=book.spine.spineItems;for(const item of items){try{const contents=await item.load(book.load.bind(book));const
+doc=contents?.document||contents;let t='';if(doc?.body)t=doc.body.textContent||'';else if(typeof
+contents==='string')t=contents.replace(/<[^>]+>/g,' ');text+=t+'\\n';item.unload()}catch(e){console.warn('No se pudo
+extraer una sección ePub',e)}}book.destroy();return {data:new Uint8Array(buf),text:text.replace(/\\s+/g,' ').trim(),
+pages:items.length}}
+$('fileInput').addEventListener('change',async e=>{const files=[...e.target.files];e.target.value='';for(const file of
+files){const ext=file.name.toLowerCase().split('.').pop();if(!['pdf','epub'].includes(ext)){toast('Formato no
+compatible: '+file.name);continue}try{toast('Importando '+file.name+'…');const parsed=ext==='pdf'?await extractPdf(
+file):await extractEpub(file);if(!parsed.text.trim())toast('Aviso: no se detectó texto. Si es un PDF escaneado,
+necesitará OCR.');const book={id:crypto.randomUUID(),title:file.name.replace(/\.(pdf|epub)$/i,''),author:'',type:
+ext==='pdf'?'PDF':'ePub',fileName:file.name,data:parsed.data,text:parsed.text.slice(0,500000),pages:parsed.pages,
+questions:[],notes:'',created:Date.now(),progress:0};await storeBook(book);books.unshift(book);activeBookId=book.id;
+renderBooks();toast('Libro importado correctamente');if(localStorage.getItem('bookmind-api-key')&&book.text.length>80){
+showTab('estudio');await generateQuestions(book.id)}else{showTab('biblioteca');if(!localStorage.getItem('bookmind-api-
+key'))toast('Libro añadido. Configura Gemini para generar preguntas automáticamente.')}}catch(err){console.error(err);
+toast('No se pudo importar '+file.name+'. Comprueba que el archivo no esté dañado.')}}});
+function getActive(){return books.find(b=>b.id===activeBookId)}
+async function openBook(id){activeBookId=id;const b=getBook(id);if(!b)return;showTab('lectura');$('readerTitle').
+textContent=b.title;$('readerError').textContent='';$('readerEmpty').classList.add('hidden');$('pdfStage').classList.
+toggle('hidden',b.type!=='PDF');$('epubStage').classList.toggle('hidden',b.type!=='ePub');try{if(b.type==='PDF'){if(
+epubRendition){epubRendition.destroy();epubRendition=null}pdfDoc=await pdfjsLib.getDocument({data:b.data}).promise;
+pdfPage=Math.max(1,Math.min(b.progress||1,pdfDoc.numPages));await renderPdfPage()}else{if(pdfDoc){pdfDoc.destroy();
+pdfDoc=null}if(epubRendition){epubRendition.destroy();epubRendition=null}epubBook=ePub(b.data);epubRendition=epubBook.
+renderTo('epubViewer',{width:'100%',height:'70vh',flow:'paginated'});await epubRendition.display();$('pageInfo').
+textContent='ePub';}}catch(err){console.error(err);$('readerError').textContent='Error al abrir el libro. Intenta
+volver a importarlo.'}}
+function getBook(id){return books.find(b=>b.id===id)}
+async function renderPdfPage(){if(!pdfDoc)return;const page=await pdfDoc.getPage(pdfPage),viewport=page.getViewport({
+scale:Math.min(1.7,(window.innerWidth-48)/page.getViewport({scale:1}).width)}),canvas=$('pdfCanvas'),ctx=canvas.
+getContext('2d');canvas.width=viewport.width;canvas.height=viewport.height;await page.render({canvasContext:ctx,
+viewport}).promise;$('pageInfo').textContent=`${pdfPage} / ${pdfDoc.numPages}`;const b=getActive();if(b){b.
+progress=pdfPage;storeBook(b).catch(console.error)}}
+function changePage(n){const b=getActive();if(!b)return;if(b.type==='PDF'&&pdfDoc){pdfPage=Math.max(1,Math.min(pdfDoc.
+numPages,pdfPage+n));renderPdfPage()}else if(epubRendition){n<0?epubRendition.prev():epubRendition.next()}}
+function studyBook(id){activeBookId=id;showTab('estudio');renderQuestions()}
+function renderQuestions(){const b=getActive();$('studyBookName').textContent=b?b.title:'Selecciona un libro para
+estudiar.';$('questionsList').innerHTML=b&&b.questions?.length?b.questions.map((q,i)=>`<article class="surface border
+rounded-2xl p-5"><div class="text-xs text-primary font-bold mb-2">PREGUNTA ${i+1}</div><h3 class="font-bold text-lg">${
+escapeHtml(q.question)}</h3><details class="mt-3"><summary class="cursor-pointer text-primary text-sm font-
+semibold">Ver respuesta</summary><p class="muted mt-3 leading-relaxed">${escapeHtml(q.answer)}</p>${q.source?`<p
+class="text-xs muted mt-2">Referencia: ${escapeHtml(q.source)}</p>`:''}</details></article>`).join(''):'<div
+class="surface border rounded-2xl p-8 text-center muted">Todavía no hay preguntas para este libro. Pulsa “Generar
+preguntas con IA”.</div>'}
+async function generateQuestions(id){if(id)activeBookId=id;const b=getActive();if(!b){toast('Primero importa o
+selecciona un libro.');return}const key=localStorage.getItem('bookmind-api-key');if(!key){$('aiStatus').
+textContent='Configura una clave de Gemini en Configuración para continuar.';showTab('ajustes');return}if(!b.text||b.
+text.trim().length<80){$('aiStatus').textContent='No hay suficiente texto extraído. Si el PDF es escaneado, primero
+necesita OCR.';return}if(busy)return;busy=true;$('generateBtn').disabled=true;$('aiStatus').textContent='Analizando el
+contenido y creando preguntas…';try{const text=b.text.slice(0,26000);const prompt=`Eres un profesor experto. Basándote
+EXCLUSIVAMENTE en el texto del libro que aparece abajo, crea 10 preguntas útiles para comprobar comprensión y recuerdo.
+Mezcla preguntas conceptuales y de aplicación. No inventes hechos que no estén en el texto. Devuelve SOLO JSON válido
+con esta estructura: {"questions":[{"question":"...","answer":"...","source":"sección o frase breve del texto, si se
+puede identificar"}]}. Texto del libro:\\n${text}`;const response=await fetch('https://generativelanguage.googleapis.
+com/v1beta/models/gemini-2.5-flash:generateContent?key='+encodeURIComponent(key),{method:'POST',headers:{'Content-Type':
+'application/json'},body:JSON.stringify({contents:[{parts:[{text:prompt}]}],generationConfig:{temperature:.35,
+responseMimeType:'application/json'}})});const payload=await response.json();if(!response.ok)throw new Error(payload.
+error?.message||'Error de Gemini ('+response.status+')');const output=payload.candidates?.[0]?.content?.parts?.map(p=>p.
+text||'').join('');if(!output)throw new Error('La IA no devolvió contenido.');const parsed=JSON.parse(output.replace(/
+^```json\s*|\s*```$/g,''));if(!Array.isArray(parsed.questions)||!parsed.questions.length)throw new Error('La respuesta
+de IA no contiene preguntas válidas.');b.questions=parsed.questions.filter(q=>q.question&&q.answer).slice(0,20);await
+storeBook(b);$('aiStatus').textContent=`Se crearon ${b.questions.length} preguntas a partir del texto extraído de “${b.
+title}”.`;renderQuestions();renderBooks();renderFlashcards();toast('Preguntas generadas correctamente')}catch(err){
+console.error(err);$('aiStatus').textContent='No se pudieron generar preguntas: '+err.message;$('aiStatus').classList.
+add('text-red-500')}finally{busy=false;$('generateBtn').disabled=false}}
+function refreshNotesSelect(){const sel=$('notesBook'),prev=sel.value;sel.innerHTML=books.map(b=>`<option value="${b.
+id}">${escapeHtml(b.title)}</option>`).join('');if(activeBookId&&books.some(b=>b.id===activeBookId))sel.
+value=activeBookId;else if(prev&&books.some(b=>b.id===prev))sel.value=prev;loadNotes()}
+function loadNotes(){const b=getBook($('notesBook').value);$('notesText').value=b?.notes||''}
+let noteTimer;function saveNotes(){const b=getBook($('notesBook').value);if(!b)return;b.notes=$('notesText').value;
+clearTimeout(noteTimer);noteTimer=setTimeout(()=>storeBook(b).then(()=>$('notesStatus').textContent='Guardado
+automáticamente').catch(()=>$('notesStatus').textContent='No se pudieron guardar los apuntes'),300)}
+function renderFlashcards(){const b=getActive();$('flashcards').innerHTML=b?.questions?.length?b.questions.map((q,
+i)=>`<details class="surface border rounded-2xl p-5"><summary class="cursor-pointer font-semibold">${i+1}. ${escapeHtml(
+q.question)}</summary><p class="muted mt-4">${escapeHtml(q.answer)}</p></details>`).join(''):'<div class="surface
+border rounded-2xl p-8 muted">Genera preguntas desde la pestaña Estudio para crear tus tarjetas.</div>'}
+async function removeBook(id){const b=getBook(id);if(!b||!confirm(`¿Eliminar “${b.title}” y sus apuntes/
+preguntas?`))return;await deleteStored(id);books=books.filter(x=>x.id!==id);if(activeBookId===id){activeBookId=books[
+0]?.id||null;if(pdfDoc){pdfDoc.destroy();pdfDoc=null}if(epubRendition){epubRendition.destroy();
+epubRendition=null}}renderBooks();refreshNotesSelect();renderQuestions();toast('Libro eliminado')}
+function saveApiKey(){const key=$('apiKey').value.trim();if(!key){$('apiStatus').textContent='Pega una clave antes de
+guardar.';return}localStorage.setItem('bookmind-api-key',key);$('apiKey').value='';$('apiStatus').textContent='Clave
+guardada en este navegador. Puedes generar preguntas.';toast('Clave guardada');if(activeBookId&&getActive()?.
+text)generateQuestions()}
+function clearApiKey(){localStorage.removeItem('bookmind-api-key');$('apiKey').value='';$('apiStatus').
+textContent='Clave eliminada del navegador.'}
+window.addEventListener('resize',()=>{if(pdfDoc)renderPdfPage()});
+(async function init(){const theme=localStorage.getItem('bookmind-theme')||'dark';setTheme(theme);$('apiStatus').
+textContent=localStorage.getItem('bookmind-api-key')?'Ya hay una clave guardada en este navegador.':'No hay ninguna
+clave guardada.';try{db=await openDB();books=await loadStored();books.sort((a,b)=>b.created-a.created);
+activeBookId=books[0]?.id||null;renderBooks();refreshNotesSelect();renderQuestions()}catch(e){console.error(e);toast(

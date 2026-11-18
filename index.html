@@ -1,1386 +1,182 @@
-<!DOCTYPE html>
-<html lang="es" class="h-full">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BookMind - Estudio Inteligente de Libros</title>
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <!-- PDF.js for PDF reading & text extraction -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
-    <!-- ePub.js for EPUB text extraction -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/epub.js/0.3.88/epub.min.js"></script>
-    <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-        tailwind.config = {
-            darkMode: 'class',
-            theme: {
-                extend: {
-                    colors: {
-                        brand: {
-                            50: '#f0f7ff',
-                            100: '#e0effe',
-                            500: '#3b82f6',
-                            600: '#2563eb',
-                            700: '#1d4ed8',
-                            800: '#1e40af',
-                            900: '#1e3a8a',
-                        }
-                    }
-                }
-            }
-        }
-    </script>
-    <style>
-        .perspective-1000 {
-            perspective: 1000px;
-        }
-        .transform-style-3d {
-            transform-style: preserve-3d;
-        }
-        .backface-hidden {
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-        }
-        .rotate-y-180 {
-            transform: rotateY(180deg);
-        }
-        .glass-panel {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(12px);
-            -webkit-backdrop-filter: blur(12px);
-        }
-        .dark .glass-panel {
-            background: rgba(17, 24, 39, 0.75);
-        }
-        /* Custom scrollbar */
-        ::-webkit-scrollbar {
-            width: 6px;
-            height: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: #cbd5e1;
-            border-radius: 9999px;
-        }
-        .dark ::-webkit-scrollbar-thumb {
-            background: #475569;
-        }
-    </style>
-</head>
-<body class="h-full bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 font-sans transition-colors duration-200 flex flex-col">
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#11243d">
+    <meta name="description" content="Tu biblioteca personal de lectura, notas y preguntas inteligentes.">
+    <title>BookMind | Tu biblioteca</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navegación principal">
+        <a class="brand" href="#biblioteca" aria-label="BookMind, ir a la biblioteca">
+          <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>book<span>mind</span></span>
+        </a>
 
-    <!-- Header -->
-    <header class="sticky top-0 z-30 glass-panel border-b border-slate-200 dark:border-slate-800 shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-            <div class="flex items-center gap-3 cursor-pointer" onclick="app.showLibraryView()">
-                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
-                    <i class="fa-solid font-bold fa-brain text-xl"></i>
-                </div>
-                <div>
-                    <h1 class="font-extrabold text-xl tracking-tight bg-gradient-to-r from-brand-600 via-indigo-600 to-purple-600 bg-clip-text text-transparent">BookMind</h1>
-                    <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Estudio Inteligente con IA</p>
-                </div>
-            </div>
+        <div class="side-label">ESPACIO PERSONAL</div>
+        <nav class="main-nav">
+          <button class="nav-link is-active" type="button" data-view="library">
+            <span class="nav-icon icon-shelf" aria-hidden="true"></span><span>Biblioteca</span>
+            <span class="nav-count" id="sidebar-book-count">0</span>
+          </button>
+          <button class="nav-link" type="button" data-view="study">
+            <span class="nav-icon icon-spark" aria-hidden="true"></span><span>Modo estudio</span>
+          </button>
+          <button class="nav-link" type="button" data-view="progress">
+            <span class="nav-icon icon-chart" aria-hidden="true"></span><span>Progreso</span>
+          </button>
+        </nav>
 
-            <!-- Controls Header -->
-            <div class="flex items-center gap-2 sm:gap-4">
-                <button onclick="app.openAddBookModal()" class="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-medium px-4 py-2 rounded-xl text-sm shadow-md shadow-brand-600/20 transition-all transform hover:-translate-y-0.5 active:translate-y-0">
-                    <i class="fa-solid fa-plus"></i>
-                    <span class="hidden sm:inline">Agregar Libro</span>
-                </button>
-                <button onclick="app.toggleDarkMode()" id="themeToggleBtn" class="p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors" title="Cambiar Tema">
-                    <i class="fa-solid fa-moon dark:hidden"></i>
-                    <i class="fa-solid fa-sun hidden dark:inline text-amber-400"></i>
-                </button>
-            </div>
+        <div class="sidebar-bottom">
+          <div class="sidebar-note">
+            <span class="note-star" aria-hidden="true">✳</span>
+            <p>Las buenas ideas merecen quedarse.</p>
+          </div>
+          <div class="profile-row">
+            <button class="avatar account-button" id="profile-avatar" type="button" data-action="profile" aria-label="Crear o editar perfil">L</button>
+            <div><strong id="profile-name">Mi espacio</strong><span id="profile-email">Biblioteca personal</span></div>
+            <span class="profile-dot" aria-hidden="true"></span>
+          </div>
         </div>
-    </header>
+      </aside>
 
-    <!-- Main Content Area -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <main class="main-area">
+        <header class="topbar">
+          <div class="breadcrumb"><span>Mi espacio</span><span class="crumb-slash">/</span><strong id="breadcrumb-current">Biblioteca</strong></div>
+          <div class="topbar-actions">
+            <label class="search-box" for="global-search">
+              <span class="search-icon" aria-hidden="true"></span>
+              <input id="global-search" type="search" placeholder="Buscar libros, ideas..." autocomplete="off">
+              <kbd>/</kbd>
+            </label>
+            <button class="icon-button home-button" type="button" data-action="home" aria-label="Volver al inicio y recargar" title="Volver al inicio y recargar">⌂</button>
+          </div>
+        </header>
 
-        <!-- 1. LIBRARY VIEW -->
-        <section id="libraryView" class="space-y-6">
-            <!-- Search & Filters Bar -->
-            <div id="searchFilterContainer" class="hidden flex flex-col md:flex-row gap-4 justify-between items-stretch md:items-center bg-white dark:bg-slate-800/80 p-4 rounded-2xl border border-slate-200 dark:border-slate-700/60 shadow-sm">
-                <div class="relative flex-1">
-                    <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm"></i>
-                    <input type="text" id="searchInput" oninput="app.filterBooks()" placeholder="Buscar por título, autor o categoría..." class="w-full pl-10 pr-4 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 dark:text-white">
-                </div>
-                <div class="flex flex-wrap items-center gap-3">
-                    <select id="categoryFilter" onchange="app.filterBooks()" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <option value="ALL">Todas las Categorías</option>
-                    </select>
-                    <select id="statusFilter" onchange="app.filterBooks()" class="px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
-                        <option value="ALL">Todos los Estados</option>
-                        <option value="Reading">Leyendo</option>
-                        <option value="Completed">Completado</option>
-                        <option value="Plan to Read">Pendiente</option>
-                    </select>
-                </div>
-            </div>
-
-            <!-- Empty State (Shown when no books exist) -->
-            <div id="emptyState" class="py-16 px-4 text-center border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-3xl bg-white/50 dark:bg-slate-800/30">
-                <div class="w-20 h-20 bg-brand-50 dark:bg-slate-800 text-brand-600 dark:text-brand-400 rounded-3xl flex items-center justify-center mx-auto mb-5 text-3xl shadow-inner">
-                    <i class="fa-solid fa-book-open"></i>
-                </div>
-                <h2 class="text-2xl font-bold text-slate-900 dark:text-white mb-2">Tu biblioteca está vacía</h2>
-                <p class="text-slate-500 dark:text-slate-400 max-w-md mx-auto mb-6 text-sm">
-                    No tienes ningún libro registrado aún. Comienza agregando tu primer libro manualmente o sube un archivo PDF / ePub para crear preguntas de estudio basadas en su contenido.
-                </p>
-                <div class="flex flex-wrap justify-center gap-3">
-                    <button onclick="app.openAddBookModal()" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl shadow-md text-sm transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-plus"></i> Agregar Libro
-                    </button>
-                    <button onclick="app.openAddBookModal(true)" class="px-5 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-100 font-medium rounded-xl text-sm transition-all flex items-center gap-2">
-                        <i class="fa-solid fa-file-arrow-up"></i> Subir PDF / ePub
-                    </button>
-                </div>
-            </div>
-
-            <!-- Books Grid Container -->
-            <div id="booksGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"></div>
-        </section>
-
-        <!-- 2. BOOK DETAIL VIEW -->
-        <section id="bookDetailView" class="hidden space-y-6">
-            <div class="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-                <button onclick="app.showLibraryView()" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 font-medium transition-colors">
-                    <i class="fa-solid fa-arrow-left"></i> Volver a la Biblioteca
-                </button>
-                <div class="flex items-center gap-2">
-                    <button id="readerBtn" onclick="app.openReaderModal()" class="hidden px-3.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-sm font-medium border border-slate-200 dark:border-slate-700 transition-colors flex items-center gap-2">
-                        <i class="fa-solid fa-book-open-reader text-brand-500"></i> Leer Documento
-                    </button>
-                    <button onclick="app.editCurrentBook()" class="p-2 text-slate-500 hover:text-brand-600 dark:text-slate-400 dark:hover:text-brand-400 rounded-lg" title="Editar libro">
-                        <i class="fa-solid fa-pen-to-square"></i>
-                    </button>
-                    <button onclick="app.deleteCurrentBook()" class="p-2 text-slate-500 hover:text-red-600 dark:text-slate-400 dark:hover:text-red-400 rounded-lg" title="Eliminar libro">
-                        <i class="fa-solid fa-trash-can"></i>
-                    </button>
-                </div>
-            </div>
-
-            <!-- Book Info Header Card -->
-            <div id="detailHeaderCard" class="bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col md:flex-row gap-6"></div>
-
-            <!-- AI Q&A Section & Action -->
-            <div class="bg-white dark:bg-slate-800/90 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-sm space-y-6">
-                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-700/80 pb-4">
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <i class="fa-solid fa-layer-group text-brand-500"></i> Preguntas y Tarjetas de Estudio
-                        </h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Preguntas clave para autoevaluación y repaso con memorización espaciada.</p>
-                    </div>
-                    <div class="flex flex-wrap items-center gap-2">
-                        <button id="aiGenerateBtn" onclick="app.generateAIQuestions()" class="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-medium rounded-xl text-sm shadow-md shadow-purple-500/20 flex items-center gap-2 transition-all transform hover:-translate-y-0.5">
-                            <i class="fa-solid fa-wand-magic-sparkles text-amber-300"></i> Generar Cuestionario
-                        </button>
-                        <button onclick="app.openAddQuestionModal()" class="px-3.5 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 font-medium rounded-xl text-sm transition-colors flex items-center gap-1.5">
-                            <i class="fa-solid fa-plus"></i> Manual
-                        </button>
-                        <button id="startStudyBtn" onclick="app.startStudyMode()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium rounded-xl text-sm shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-colors">
-                            <i class="fa-solid fa-play"></i> Modo Estudio
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Questions List -->
-                <div id="questionsList" class="space-y-3"></div>
-            </div>
-        </section>
-
-        <!-- 3. FLASHCARD STUDY MODE VIEW -->
-        <section id="studyView" class="hidden max-w-2xl mx-auto space-y-6">
-            <div class="flex items-center justify-between">
-                <button onclick="app.showBookDetail(app.activeBookId)" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 dark:text-slate-400 font-medium">
-                    <i class="fa-solid fa-arrow-left"></i> Salir del Estudio
-                </button>
-                <div class="text-sm font-semibold text-slate-600 dark:text-slate-300">
-                    Tarjeta <span id="studyCurrentIdx">1</span> de <span id="studyTotalCount">0</span>
-                </div>
-            </div>
-
-            <!-- Progress Bar -->
-            <div class="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                <div id="studyProgressBar" class="bg-brand-500 h-full transition-all duration-300" style="width: 0%"></div>
-            </div>
-
-            <!-- 3D Flashcard Container -->
-            <div class="perspective-1000 min-h-[320px] cursor-pointer" onclick="app.flipStudyCard()">
-                <div id="flashcardInner" class="relative w-full h-80 transition-transform duration-500 transform-style-3d rounded-3xl shadow-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-                    <!-- Front (Question) -->
-                    <div class="absolute inset-0 w-full h-full p-8 backface-hidden flex flex-col justify-between rounded-3xl">
-                        <div class="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-brand-600 dark:text-brand-400">
-                            <span>Pregunta</span>
-                            <span class="text-slate-400"><i class="fa-solid fa-rotate"></i> Haz clic para girar</span>
-                        </div>
-                        <div id="cardQuestionText" class="text-lg sm:text-xl font-medium text-slate-900 dark:text-white text-center px-4 my-auto"></div>
-                        <div class="text-center text-xs text-slate-400">Toca la tarjeta para ver la respuesta</div>
-                    </div>
-                    <!-- Back (Answer) -->
-                    <div class="absolute inset-0 w-full h-full p-8 backface-hidden rotate-y-180 flex flex-col justify-between rounded-3xl bg-indigo-50/50 dark:bg-slate-800/90 border-2 border-indigo-200 dark:border-indigo-900/50">
-                        <div class="flex justify-between items-center text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                            <span>Respuesta</span>
-                            <span class="text-slate-400"><i class="fa-solid fa-rotate"></i> Haz clic para girar</span>
-                        </div>
-                        <div id="cardAnswerText" class="text-base sm:text-lg text-slate-800 dark:text-slate-100 text-center px-4 my-auto overflow-y-auto max-h-44"></div>
-                        <div class="text-center text-xs text-indigo-400 font-medium">¿Qué tan bien recordabas esto?</div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Rating Controls -->
-            <div id="studyControls" class="flex justify-center gap-4 pt-2">
-                <button onclick="app.answerStudyCard(false)" class="flex-1 py-3 px-4 bg-red-100 hover:bg-red-200 text-red-700 dark:bg-red-950/50 dark:hover:bg-red-900/60 dark:text-red-300 font-semibold rounded-2xl text-sm transition-colors flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-xmark"></i> Repasar
-                </button>
-                <button onclick="app.answerStudyCard(true)" class="flex-1 py-3 px-4 bg-emerald-100 hover:bg-emerald-200 text-emerald-700 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 dark:text-emerald-300 font-semibold rounded-2xl text-sm transition-colors flex items-center justify-center gap-2">
-                    <i class="fa-solid fa-check"></i> ¡Lo Sé!
-                </button>
-            </div>
-        </section>
-
-    </main>
-
-
-    <!-- MODAL 1: ADD / EDIT BOOK -->
-    <div id="addBookModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 my-8">
-            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700/80 pb-3">
-                <h3 id="modalBookTitle" class="text-xl font-bold text-slate-900 dark:text-white">Agregar Nuevo Libro</h3>
-                <button onclick="app.closeAddBookModal()" class="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <form id="bookForm" onsubmit="app.saveBook(event)" class="space-y-4">
-                <input type="hidden" id="bookIdInput">
-
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Título del Libro *</label>
-                    <input type="text" id="bookTitleInput" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white" placeholder="Ej: Cien Años de Soledad">
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Autor</label>
-                        <input type="text" id="bookAuthorInput" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white" placeholder="Gabriel García Márquez">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Categoría</label>
-                        <input type="text" id="bookCategoryInput" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white" placeholder="Novela, Filosofía, Ciencia...">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Estado</label>
-                        <select id="bookStatusInput" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white">
-                            <option value="Reading">Leyendo</option>
-                            <option value="Completed">Completado</option>
-                            <option value="Plan to Read">Pendiente</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Cap. Leídos</label>
-                        <input type="number" id="bookReadChaptersInput" min="0" value="0" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Cap. Totales</label>
-                        <input type="number" id="bookTotalChaptersInput" min="0" value="0" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Páginas</label>
-                        <input type="number" id="bookPagesInput" min="0" value="0" readonly class="w-full px-3.5 py-2.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white cursor-not-allowed" title="Se completa automáticamente al subir el archivo">
-                    </div>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Notas / Resumen Inicial</label>
-                    <textarea id="bookNotesInput" rows="3" class="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 dark:text-white" placeholder="Añade notas breves o resumen del contenido para dar contexto al generador de preguntas..."></textarea>
-                </div>
-
-                <!-- PDF/ePub Upload Field -->
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Archivo Digital (PDF o ePub opcional)</label>
-                    <div class="flex items-center gap-3">
-                        <input type="file" id="bookFileInput" accept=".pdf,.epub" class="block w-full text-xs text-slate-500 dark:text-slate-400 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-brand-50 file:text-brand-700 dark:file:bg-slate-700 dark:file:text-brand-300 hover:file:bg-brand-100 cursor-pointer">
-                    </div>
-                    <p class="text-[11px] text-slate-400 mt-1">Se extrae el texto del archivo para crear preguntas. Los PDF escaneados como imagen pueden necesitar OCR.</p>
-                </div>
-
-                <div class="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-slate-700">
-                    <button type="button" onclick="app.closeAddBookModal()" class="px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-medium rounded-xl text-sm hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Cancelar</button>
-                    <button type="submit" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-xl text-sm shadow-md transition-colors flex items-center gap-2">
-                        <i class="fa-solid fa-floppy-disk"></i> Guardar Libro
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL 2: AI QUESTIONS PREVIEW & SELECTION -->
-    <div id="aiPreviewModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-5 my-8">
-            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-3">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Cuestionario generado a partir del texto</h3>
-                        <p class="text-xs text-slate-500 dark:text-slate-400">Revisa, edita o desmarca las preguntas antes de guardarlas.</p>
-                    </div>
-                </div>
-                <button onclick="app.closeAIPreviewModal()" class="text-slate-400 hover:text-slate-600 text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-
-            <div id="aiQuestionsContainer" class="space-y-4 max-h-96 overflow-y-auto pr-1"></div>
-
-            <div class="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-slate-700">
-                <span id="aiSelectedCount" class="text-xs font-medium text-slate-500">0 seleccionadas</span>
-                <div class="flex gap-2">
-                    <button onclick="app.closeAIPreviewModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium">Cancelar</button>
-                    <button onclick="app.saveAISelectedQuestions()" class="px-5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-medium shadow-md flex items-center gap-2">
-                        <i class="fa-solid fa-check"></i> Guardar Preguntas
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL 3: MANUAL QUESTION ADD/EDIT -->
-    <div id="questionModal" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
-            <h3 id="questionModalTitle" class="text-lg font-bold text-slate-900 dark:text-white">Añadir Pregunta</h3>
-            <form onsubmit="app.saveManualQuestion(event)" class="space-y-4">
-                <input type="hidden" id="qIdInput">
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Pregunta</label>
-                    <textarea id="qQuestionInput" required rows="2" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white focus:ring-2 focus:ring-brand-500"></textarea>
-                </div>
-                <div>
-                    <label class="block text-xs font-semibold uppercase text-slate-500 dark:text-slate-400 mb-1">Respuesta</label>
-                    <textarea id="qAnswerInput" required rows="3" class="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl text-sm dark:text-white focus:ring-2 focus:ring-brand-500"></textarea>
-                </div>
-                <div class="flex justify-end gap-2 pt-2">
-                    <button type="button" onclick="app.closeQuestionModal()" class="px-4 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl text-sm font-medium">Cancelar</button>
-                    <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-medium shadow">Guardar</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- MODAL 4: DOCUMENT READER -->
-    <div id="readerModal" class="fixed inset-0 z-50 hidden bg-slate-900/70 backdrop-blur-sm flex items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl max-w-4xl w-full h-[85vh] p-6 shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col space-y-4">
-            <div class="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-3">
-                <h3 id="readerTitle" class="text-lg font-bold text-slate-900 dark:text-white truncate">Lector de Documento</h3>
-                <button onclick="app.closeReaderModal()" class="text-slate-400 hover:text-slate-600 text-lg">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
-            </div>
-            <div id="readerContent" class="flex-1 overflow-y-auto p-4 bg-slate-50 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 text-sm leading-relaxed text-slate-800 dark:text-slate-200 font-serif whitespace-pre-wrap"></div>
-        </div>
-    </div>
-
-    <!-- LOADING SPINNER OVERLAY -->
-    <div id="loadingOverlay" class="fixed inset-0 z-50 hidden bg-slate-900/60 backdrop-blur-sm flex flex-col items-center justify-center p-4">
-        <div class="bg-white dark:bg-slate-800 rounded-3xl p-8 shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col items-center space-y-4 max-w-sm text-center">
-            <div class="relative flex items-center justify-center">
-                <div class="w-16 h-16 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
-                <i class="fa-solid fa-wand-magic-sparkles text-indigo-500 absolute text-lg"></i>
-            </div>
+        <section class="view library-view" id="library-view" aria-labelledby="page-title">
+          <div class="page-heading">
             <div>
-                <h4 id="loadingTitle" class="font-bold text-slate-900 dark:text-white text-base">Analizando libro con IA...</h4>
-                <p id="loadingSub" class="text-xs text-slate-500 dark:text-slate-400 mt-1">Analizando el contenido del libro para crear preguntas de comprensión.</p>
+              <div class="eyebrow"><span class="eyebrow-line"></span> TU RINCÓN DE LECTURA</div>
+              <h1 id="page-title">Una biblioteca <em>que piensa contigo.</em></h1>
+              <p class="page-subtitle">Guarda lo que lees. Recuerda lo que importa.</p>
             </div>
+            <button class="primary-button" type="button" data-action="add-book"><span class="plus-icon" aria-hidden="true">+</span> Añadir libro</button>
+          </div>
+
+          <div class="stats-row" aria-label="Resumen de biblioteca">
+            <div class="stat-item"><span class="stat-icon stat-books" aria-hidden="true"></span><div><span class="stat-value" id="stat-books">0</span><span class="stat-label">libros en tu estante</span></div></div>
+            <div class="stat-divider"></div>
+            <div class="stat-item"><span class="stat-icon stat-reading" aria-hidden="true"></span><div><span class="stat-value" id="stat-reading">0</span><span class="stat-label">en lectura</span></div></div>
+            <div class="stat-divider"></div>
+            <div class="stat-item"><span class="stat-icon stat-questions" aria-hidden="true"></span><div><span class="stat-value" id="stat-questions">0</span><span class="stat-label">ideas guardadas</span></div></div>
+            <div class="stat-spacer"></div>
+            <div class="reading-streak"><span class="streak-sun" aria-hidden="true">✳</span><span><strong id="stat-finished">0</strong> libros terminados</span></div>
+          </div>
+
+          <div class="library-toolbar">
+            <div class="filter-group" role="group" aria-label="Filtrar libros por estado">
+              <button class="filter-chip is-selected" type="button" data-filter="all">Todos <span id="filter-count-all">0</span></button>
+              <button class="filter-chip" type="button" data-filter="reading">Leyendo</button>
+              <button class="filter-chip" type="button" data-filter="pending">Pendientes</button>
+              <button class="filter-chip" type="button" data-filter="finished">Terminados</button>
+            </div>
+            <label class="sort-control">Ordenar por
+              <select id="sort-books" aria-label="Ordenar libros">
+                <option value="recent">Añadidos recientemente</option>
+                <option value="title">Título, A–Z</option>
+                <option value="progress">Progreso de lectura</option>
+              </select>
+            </label>
+          </div>
+          <div class="genre-toolbar">
+            <span class="genre-label">Géneros</span>
+            <div class="genre-filter-group" id="genre-filters" role="group" aria-label="Filtrar libros por género"></div>
+          </div>
+
+          <div class="content-layout">
+            <div class="library-column">
+              <div class="section-heading"><h2>Tu estante</h2><span id="visible-book-count">0 libros</span></div>
+              <div class="book-grid" id="book-grid"></div>
+            </div>
+            <aside class="detail-panel" id="detail-panel" aria-label="Detalle del libro seleccionado"></aside>
+          </div>
+        </section>
+
+        <section class="view secondary-view" id="study-view" aria-labelledby="study-title" hidden>
+          <div class="page-heading compact-heading">
+            <div><div class="eyebrow"><span class="eyebrow-line"></span> REPASA A TU RITMO</div><h1 id="study-title">Modo <em>estudio.</em></h1><p class="page-subtitle">Una pregunta a la vez. Sin prisa.</p></div>
+            <label class="study-book-select">Practicar con
+              <select id="study-book-select" aria-label="Elegir libro para estudiar"><option value="all">Todos los libros</option></select>
+            </label>
+          </div>
+          <div class="study-stage" id="study-stage"></div>
+        </section>
+
+        <section class="view secondary-view" id="progress-view" aria-labelledby="progress-title" hidden>
+          <div class="page-heading compact-heading">
+            <div><div class="eyebrow"><span class="eyebrow-line"></span> CADA PÁGINA CUENTA</div><h1 id="progress-title">Tu camino <em>lector.</em></h1><p class="page-subtitle">Un vistazo a todo lo que llevas recorrido.</p></div>
+            <button class="primary-button" type="button" data-action="add-book"><span class="plus-icon" aria-hidden="true">+</span> Añadir libro</button>
+          </div>
+          <div class="progress-summary" id="progress-summary"></div>
+          <div class="progress-section"><div class="section-heading"><h2>Libros en tu estante</h2><span id="progress-book-count">0 libros</span></div><div class="progress-list" id="progress-list"></div></div>
+        </section>
+      </main>
+    </div>
+
+    <dialog class="app-dialog" id="book-dialog" aria-labelledby="book-dialog-title">
+      <form id="book-form">
+        <div class="dialog-header"><div><div class="eyebrow"><span class="eyebrow-line"></span> TU BIBLIOTECA</div><h2 id="book-dialog-title">Añadir un libro</h2></div><button class="icon-button close-button" type="button" data-close="book-dialog" aria-label="Cerrar">×</button></div>
+        <input type="hidden" id="book-id">
+        <div class="form-grid">
+          <div class="field field-wide file-import-field">
+            <span>Archivo del libro <span class="optional-label">OPCIONAL</span></span>
+            <label class="file-drop" for="book-file">
+              <span class="file-mark" aria-hidden="true">↑</span>
+              <span><strong>Selecciona un PDF o EPUB</strong><small>Extraeremos metadatos y analizaremos el texto en este dispositivo.</small></span>
+              <input id="book-file" type="file" accept=".pdf,.epub,application/pdf,application/epub+zip">
+            </label>
+            <span class="file-status" id="book-file-status" role="status" aria-live="polite">El archivo se guardará en este dispositivo.</span>
+          </div>
+          <label class="field field-wide">Título del libro<input id="book-title" name="title" required maxlength="100" placeholder="Ej. El nombre del viento"></label>
+          <label class="field">Autor<input id="book-author" name="author" maxlength="80" placeholder="Nombre del autor"></label>
+          <label class="field">Categoría<input id="book-category" name="category" maxlength="40" placeholder="Ej. Novela, historia..."></label>
+          <label class="field">Estado de lectura<select id="book-status" name="status"><option value="pending">Pendiente</option><option value="reading">Leyendo</option><option value="finished">Terminado</option></select></label>
+          <label class="field">Progreso <span class="input-suffix"><input id="book-progress" name="progress" type="number" min="0" max="100" value="0"><span>%</span></span></label>
+          <label class="field field-wide">Notas y resumen<textarea id="book-notes" name="notes" rows="4" maxlength="1200" placeholder="Ideas, citas propias o un resumen breve..."></textarea></label>
         </div>
-    </div>
-
-    <!-- TOAST NOTIFICATION -->
-    <div id="toast" class="fixed bottom-5 right-5 z-50 transform translate-y-20 opacity-0 transition-all duration-300 bg-slate-900 dark:bg-white text-white dark:text-slate-900 px-5 py-3 rounded-2xl shadow-xl flex items-center gap-3 text-sm font-medium">
-        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600"></i>
-        <span id="toastMsg">Notificación</span>
-    </div>
-
-    <script>
-        const DB_NAME = 'BookMindStorage';
-        const DB_VERSION = 1;
-
-        function openDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                request.onupgradeneeded = (e) => {
-                    const db = e.target.result;
-                    if (!db.objectStoreNames.contains('files')) {
-                        db.createObjectStore('files');
-                    }
-                };
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
-        }
-
-        async function saveFileText(id, text) {
-            try {
-                const db = await openDB();
-                const tx = db.transaction('files', 'readwrite');
-                tx.objectStore('files').put(text, id);
-                return await new Promise((resolve, reject) => {
-                    tx.oncomplete = () => resolve(true);
-                    tx.onerror = () => reject(tx.error);
-                    tx.onabort = () => reject(tx.error || new Error('No se pudo guardar el archivo.'));
-                });
-            } catch (err) {
-                console.error("Error saving to IndexedDB:", err);
-            }
-        }
-
-        async function getFileText(id) {
-            try {
-                const db = await openDB();
-                const tx = db.transaction('files', 'readonly');
-                const req = tx.objectStore('files').get(id);
-                return new Promise((resolve) => {
-                    req.onsuccess = () => resolve(req.result || '');
-                    req.onerror = () => resolve('');
-                });
-            } catch (err) {
-                return '';
-            }
-        }
-
-        async function deleteFileText(id) {
-            try {
-                const db = await openDB();
-                const tx = db.transaction('files', 'readwrite');
-                tx.objectStore('files').delete(id);
-            } catch (err) {}
-        }
-
-        class BookMindApp {
-            constructor() {
-                this.books = JSON.parse(localStorage.getItem('bookmind_books') || '[]');
-                this.activeBookId = null;
-                this.tempGeneratedQuestions = [];
-                this.studyState = {
-                    cards: [],
-                    currentIdx: 0,
-                    isFlipped: false,
-                    correctCount: 0
-                };
-
-                this.initTheme();
-            }
-
-            init() {
-                this.renderLibrary();
-                this.populateCategoryFilter();
-            }
-
-            saveToLocalStorage() {
-                localStorage.setItem('bookmind_books', JSON.stringify(this.books));
-            }
-
-            initTheme() {
-                if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                }
-            }
-
-            toggleDarkMode() {
-                if (document.documentElement.classList.contains('dark')) {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                } else {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                }
-            }
-
-            showToast(msg, type = 'success') {
-                const toast = document.getElementById('toast');
-                const toastMsg = document.getElementById('toastMsg');
-                const toastIcon = document.getElementById('toastIcon');
-
-                toastMsg.innerText = msg;
-                if (type === 'error') {
-                    toastIcon.className = 'fa-solid fa-circle-exclamation text-red-500';
-                } else {
-                    toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 dark:text-emerald-600';
-                }
-
-                toast.classList.remove('translate-y-20', 'opacity-0');
-                setTimeout(() => {
-                    toast.classList.add('translate-y-20', 'opacity-0');
-                }, 3000);
-            }
-
-            showLoading(title = 'Analizando libro con IA...', sub = 'Generando preguntas y respuestas clave.') {
-                document.getElementById('loadingTitle').innerText = title;
-                document.getElementById('loadingSub').innerText = sub;
-                document.getElementById('loadingOverlay').classList.remove('hidden');
-            }
-
-            hideLoading() {
-                document.getElementById('loadingOverlay').classList.add('hidden');
-            }
-
-            showLibraryView() {
-                document.getElementById('libraryView').classList.remove('hidden');
-                document.getElementById('bookDetailView').classList.add('hidden');
-                document.getElementById('studyView').classList.add('hidden');
-                this.activeBookId = null;
-                this.renderLibrary();
-            }
-
-            populateCategoryFilter() {
-                const categories = Array.from(new Set(this.books.map(b => b.category).filter(Boolean)));
-                const filterEl = document.getElementById('categoryFilter');
-                filterEl.innerHTML = '<option value="ALL">Todas las Categorías</option>';
-                categories.forEach(cat => {
-                    const opt = document.createElement('option');
-                    opt.value = cat;
-                    opt.textContent = cat;
-                    filterEl.appendChild(opt);
-                });
-            }
-
-            renderLibrary() {
-                const grid = document.getElementById('booksGrid');
-                const emptyState = document.getElementById('emptyState');
-                const searchFilterContainer = document.getElementById('searchFilterContainer');
-
-                if (this.books.length === 0) {
-                    emptyState.classList.remove('hidden');
-                    searchFilterContainer.classList.add('hidden');
-                    grid.innerHTML = '';
-                    return;
-                }
-
-                emptyState.classList.add('hidden');
-                searchFilterContainer.classList.remove('hidden');
-
-                const search = document.getElementById('searchInput').value.toLowerCase();
-                const category = document.getElementById('categoryFilter').value;
-                const status = document.getElementById('statusFilter').value;
-
-                const filtered = this.books.filter(b => {
-                    const matchesSearch = (b.title || '').toLowerCase().includes(search) ||
-                                          (b.author || '').toLowerCase().includes(search) ||
-                                          (b.category || '').toLowerCase().includes(search);
-                    const matchesCat = category === 'ALL' || b.category === category;
-                    const matchesStatus = status === 'ALL' || b.status === status;
-                    return matchesSearch && matchesCat && matchesStatus;
-                });
-
-                if (filtered.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full py-12 text-center text-slate-400">No se encontraron libros con los filtros seleccionados.</div>`;
-                    return;
-                }
-
-                grid.innerHTML = filtered.map(b => {
-                    const progress = Math.min(100, Math.round(((b.readChapters || 0) / (b.totalChapters || 1)) * 100));
-                    const qCount = (b.questions || []).length;
-                    
-                    let statusColor = 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300';
-                    let statusLabel = 'Pendiente';
-                    if (b.status === 'Reading') {
-                        statusColor = 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300';
-                        statusLabel = 'Leyendo';
-                    } else if (b.status === 'Completed') {
-                        statusColor = 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300';
-                        statusLabel = 'Completado';
-                    }
-
-                    return `
-                    <div onclick="app.showBookDetail('${b.id}')" class="group bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700/70 p-5 shadow-sm hover:shadow-xl hover:border-brand-500/50 transition-all cursor-pointer flex flex-col justify-between relative overflow-hidden">
-                        <div class="space-y-3">
-                            <div class="flex justify-between items-start gap-2">
-                                <span class="px-2.5 py-1 rounded-lg text-xs font-semibold ${statusColor}">
-                                    ${statusLabel}
-                                </span>
-                                ${b.hasFile ? '<span class="text-xs font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-slate-700 px-2 py-0.5 rounded-md"><i class="fa-solid fa-file-pdf"></i> Adjunto</span>' : ''}
-                            </div>
-                            <div>
-                                <h3 class="font-bold text-base text-slate-900 dark:text-white group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors line-clamp-1">${b.title}</h3>
-                                <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5 line-clamp-1"><i class="fa-regular fa-user mr-1"></i> ${b.author || 'Autor desconocido'}</p>
-                            </div>
-                            ${b.category ? `<span class="inline-block px-2 py-0.5 text-[11px] font-medium bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-md">${b.category}</span>` : ''}
-                        </div>
-
-                        <div class="mt-6 pt-4 border-t border-slate-100 dark:border-slate-700/60 space-y-2">
-                            <div class="flex justify-between text-xs text-slate-500 dark:text-slate-400">
-                                <span>Progreso (${b.readChapters || 0}/${b.totalChapters || 0} cap)</span>
-                                <span class="font-bold text-slate-700 dark:text-slate-200">${progress}%</span>
-                            </div>
-                            <div class="w-full bg-slate-100 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                                <div class="bg-brand-500 h-full rounded-full transition-all duration-300" style="width: ${progress}%"></div>
-                            </div>
-                            <div class="flex justify-between items-center pt-2 text-xs text-slate-400">
-                                <span><i class="fa-solid fa-circle-question mr-1"></i> ${qCount} preguntas</span>
-                                <span>${b.pageCount ? `<i class="fa-regular fa-file-lines mr-1"></i>${b.pageCount}${b.pageCountType === 'estimated' ? ' págs. est.' : ' págs.'}` : ''}</span>
-                            </div>
-                        </div>
-                    </div>
-                    `;
-                }).join('');
-            }
-
-            filterBooks() {
-                this.renderLibrary();
-            }
-
-            async showBookDetail(id) {
-                const book = this.books.find(b => b.id === id);
-                if (!book) return;
-
-                this.activeBookId = id;
-                document.getElementById('libraryView').classList.add('hidden');
-                document.getElementById('studyView').classList.add('hidden');
-                document.getElementById('bookDetailView').classList.remove('hidden');
-
-                const headerCard = document.getElementById('detailHeaderCard');
-                const progress = Math.min(100, Math.round(((book.readChapters || 0) / (book.totalChapters || 1)) * 100));
-
-                headerCard.innerHTML = `
-                    <div class="w-16 h-20 bg-gradient-to-tr from-brand-600 to-indigo-600 rounded-xl flex flex-col items-center justify-center text-white font-bold shadow-md flex-shrink-0">
-                        <i class="fa-solid fa-book text-2xl"></i>
-                    </div>
-                    <div class="flex-1 space-y-3">
-                        <div class="flex flex-wrap items-center justify-between gap-2">
-                            <div>
-                                <h2 class="text-2xl font-extrabold text-slate-900 dark:text-white">${book.title}</h2>
-                                <p class="text-sm text-slate-500 dark:text-slate-400"><i class="fa-regular fa-user mr-1"></i> ${book.author || 'Autor no especificado'}</p>
-                            </div>
-                            <span class="px-3 py-1 bg-brand-50 dark:bg-slate-700 text-brand-700 dark:text-brand-300 text-xs font-semibold rounded-full border border-brand-200 dark:border-slate-600">
-                                ${book.category || 'Sin categoría'}
-                            </span>
-                        </div>
-
-                        ${book.notes ? `<p class="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-900/60 p-3 rounded-xl border border-slate-100 dark:border-slate-700/50">${book.notes}</p>` : ''}
-
-                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
-                            <div>
-                                <div class="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-300 mb-1">
-                                    <span>Progreso Lectura</span>
-                                    <span>${progress}% (${book.readChapters || 0}/${book.totalChapters || 0} capítulos)</span>
-                                </div>
-                                <div class="w-full bg-slate-100 dark:bg-slate-700 h-2.5 rounded-full overflow-hidden">
-                                    <div class="bg-brand-600 h-full rounded-full" style="width: ${progress}%"></div>
-                                </div>
-                            </div>
-                            <div class="flex items-center justify-end gap-3 text-xs text-slate-500">
-                                <span><strong class="text-slate-800 dark:text-slate-200">${(book.questions || []).length}</strong> Preguntas registradas</span>
-                            </div>
-                        </div>
-                    </div>
-                `;
-
-                // Reader button visibility
-                const readerBtn = document.getElementById('readerBtn');
-                if (book.hasFile) {
-                    readerBtn.classList.remove('hidden');
-                } else {
-                    readerBtn.classList.add('hidden');
-                }
-
-                this.renderQuestionsList(book);
-            }
-
-            renderQuestionsList(book) {
-                const list = document.getElementById('questionsList');
-                const startStudyBtn = document.getElementById('startStudyBtn');
-                const questions = book.questions || [];
-
-                if (questions.length === 0) {
-                    startStudyBtn.disabled = true;
-                    startStudyBtn.classList.add('opacity-50', 'cursor-not-allowed');
-                    list.innerHTML = `
-                        <div class="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-700/60 rounded-2xl">
-                            <i class="fa-solid fa-wand-magic-sparkles text-3xl text-purple-400 mb-3 block"></i>
-                            <p class="text-slate-600 dark:text-slate-300 font-medium text-sm">Este libro aún no tiene preguntas de estudio.</p>
-                            <p class="text-xs text-slate-400 mt-1">Haz clic en <strong>"Generar Cuestionario"</strong> analizando directamente el texto extraído del libro.</p>
-                        </div>
-                    `;
-                    return;
-                }
-
-                startStudyBtn.disabled = false;
-                startStudyBtn.classList.remove('opacity-50', 'cursor-not-allowed');
-
-                list.innerHTML = questions.map((q, idx) => `
-                    <div class="p-4 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/60 rounded-2xl flex justify-between items-start gap-4">
-                        <div class="space-y-1.5 flex-1">
-                            <h4 class="font-semibold text-sm text-slate-900 dark:text-white">P${idx + 1}. ${q.question}</h4>
-                            <p class="text-xs text-slate-600 dark:text-slate-300 font-serif leading-relaxed">${q.answer}</p>
-                        </div>
-                        <div class="flex items-center gap-1">
-                            <button onclick="app.openQuestionModal('${q.id}')" class="p-1.5 text-slate-400 hover:text-brand-600 rounded-lg"><i class="fa-solid fa-pen"></i></button>
-                            <button onclick="app.deleteQuestion('${q.id}')" class="p-1.5 text-slate-400 hover:text-red-500 rounded-lg"><i class="fa-solid fa-trash-can"></i></button>
-                        </div>
-                    </div>
-                `).join('');
-            }
-
-            openAddBookModal(fromUpload = false) {
-                document.getElementById('modalBookTitle').innerText = 'Agregar Nuevo Libro';
-                document.getElementById('bookForm').reset();
-                document.getElementById('bookIdInput').value = '';
-                document.getElementById('addBookModal').classList.remove('hidden');
-                if (fromUpload) {
-                    document.getElementById('bookFileInput').focus();
-                }
-            }
-
-            closeAddBookModal() {
-                document.getElementById('addBookModal').classList.add('hidden');
-            }
-
-            editCurrentBook() {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book) return;
-
-                document.getElementById('modalBookTitle').innerText = 'Editar Libro';
-                document.getElementById('bookIdInput').value = book.id;
-                document.getElementById('bookTitleInput').value = book.title;
-                document.getElementById('bookAuthorInput').value = book.author || '';
-                document.getElementById('bookCategoryInput').value = book.category || '';
-                document.getElementById('bookStatusInput').value = book.status || 'Reading';
-                document.getElementById('bookReadChaptersInput').value = book.readChapters || 0;
-                document.getElementById('bookTotalChaptersInput').value = book.totalChapters || 0;
-                document.getElementById('bookPagesInput').value = book.pageCount || 0;
-                document.getElementById('bookNotesInput').value = book.notes || '';
-
-                document.getElementById('addBookModal').classList.remove('hidden');
-            }
-
-            async saveBook(e) {
-                e.preventDefault();
-
-                const id = document.getElementById('bookIdInput').value;
-                let title = document.getElementById('bookTitleInput').value.trim();
-                let author = document.getElementById('bookAuthorInput').value.trim();
-                const category = document.getElementById('bookCategoryInput').value.trim() || 'General';
-                const status = document.getElementById('bookStatusInput').value;
-                let readChapters = parseInt(document.getElementById('bookReadChaptersInput').value) || 0;
-                let totalChapters = parseInt(document.getElementById('bookTotalChaptersInput').value) || 0;
-                const notes = document.getElementById('bookNotesInput').value.trim();
-                const fileInput = document.getElementById('bookFileInput');
-
-                let book = id ? this.books.find(b => b.id === id) : null;
-                const newId = id || 'book_' + Date.now();
-                let extracted = null;
-                let hasFile = book ? !!book.hasFile : false;
-
-                if (fileInput.files && fileInput.files[0]) {
-                    const file = fileInput.files[0];
-                    const extension = file.name.split('.').pop().toLowerCase();
-
-                    if (!['pdf', 'epub'].includes(extension)) {
-                        this.showToast('Solo se admiten archivos PDF o ePub.', 'error');
-                        return;
-                    }
-                    if (file.size > 50 * 1024 * 1024) {
-                        this.showToast('El archivo supera el límite de 50 MB.', 'error');
-                        return;
-                    }
-
-                    this.showLoading('Procesando archivo...', `Analizando ${file.name}`);
-                    try {
-                        extracted = extension === 'pdf'
-                            ? await this.extractPDFText(file)
-                            : await this.extractEPUBText(file);
-
-                        if (!extracted || !extracted.text.trim()) {
-                            throw new Error('No se pudo extraer texto. Si es un PDF escaneado, necesitarás OCR.');
-                        }
-
-                        await saveFileText(newId, extracted.text);
-                        hasFile = true;
-
-                        // Los metadatos del archivo tienen prioridad si el usuario
-                        // dejó vacíos los campos del formulario.
-                        title = title || extracted.title || file.name.replace(/\.(pdf|epub)$/i, '');
-                        author = author || extracted.author || 'Autor desconocido';
-
-                        if (extracted.chapterCount && !totalChapters) {
-                            totalChapters = extracted.chapterCount;
-                        }
-
-                        const pagesInput = document.getElementById('bookPagesInput');
-                        if (pagesInput && extracted.pageCount) {
-                            pagesInput.value = extracted.pageCount;
-                        }
-                    } catch (err) {
-                        console.error('Error procesando archivo:', err);
-                        this.showToast(err.message || 'Error al procesar el archivo digital.', 'error');
-                        this.hideLoading();
-                        return;
-                    } finally {
-                        this.hideLoading();
-                    }
-                }
-
-                const pagesInput = document.getElementById('bookPagesInput');
-                const pageCount = extracted?.pageCount ||
-                    (pagesInput?.value ? parseInt(pagesInput.value, 10) : (book?.pageCount || 0));
-
-                if (!title) {
-                    this.showToast('El libro necesita un título.', 'error');
-                    return;
-                }
-
-                if (book) {
-                    book.title = title;
-                    book.author = author;
-                    book.category = category;
-                    book.status = status;
-                    book.readChapters = readChapters;
-                    book.totalChapters = totalChapters || book.totalChapters || 0;
-                    book.pageCount = pageCount;
-                    book.pageCountType = extracted?.pageCountType || book.pageCountType || 'unknown';
-                    book.notes = notes;
-                    book.hasFile = hasFile;
-                    if (extracted) {
-                        book.fileType = extracted.fileType;
-                        book.wordCount = extracted.wordCount;
-                    }
-                } else {
-                    book = {
-                        id: newId,
-                        title,
-                        author,
-                        category,
-                        status,
-                        readChapters,
-                        totalChapters,
-                        pageCount,
-                        pageCountType: extracted?.pageCountType || 'unknown',
-                        notes,
-                        hasFile,
-                        fileType: extracted?.fileType || '',
-                        wordCount: extracted?.wordCount || 0,
-                        questions: [],
-                        createdAt: new Date().toISOString()
-                    };
-                    this.books.unshift(book);
-                }
-
-                this.saveToLocalStorage();
-                this.populateCategoryFilter();
-                this.closeAddBookModal();
-                this.showToast(id ? 'Libro actualizado correctamente' : 'Libro agregado a la biblioteca');
-
-                if (this.activeBookId === newId) {
-                    this.showBookDetail(newId);
-                } else {
-                    this.renderLibrary();
-                }
-            }
-
-            deleteCurrentBook() {
-                if (!this.activeBookId) return;
-                const idx = this.books.findIndex(b => b.id === this.activeBookId);
-                if (idx !== -1) {
-                    deleteFileText(this.activeBookId);
-                    this.books.splice(idx, 1);
-                    this.saveToLocalStorage();
-                    this.populateCategoryFilter();
-                    this.showToast('Libro eliminado');
-                    this.showLibraryView();
-                }
-            }
-
-            normalizeMetadata(value) {
-                if (!value) return '';
-                if (typeof value === 'string') return value.replace(/\s+/g, ' ').trim();
-                if (Array.isArray(value)) return value.map(v => this.normalizeMetadata(v)).filter(Boolean).join(', ');
-                if (typeof value === 'object') {
-                    return this.normalizeMetadata(value['#text'] || value.text || value.value || value.name || '');
-                }
-                return String(value).trim();
-            }
-
-            inferTitleFromFilename(fileName) {
-                return (fileName || '')
-                    .replace(/\.(pdf|epub)$/i, '')
-                    .replace(/[_-]+/g, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-            }
-
-            inferAuthorFromText(text) {
-                const sample = (text || '').slice(0, 5000);
-                const patterns = [
-                    /(?:autor|autora|author|written by|escrito por)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ][^\n,;]{2,80})/i,
-                    /(?:por|by)\s+([A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.'-]+(?:\s+[A-ZÁÉÍÓÚÑ][A-Za-zÁÉÍÓÚÑáéíóúñ.'-]+){1,4})/i
-                ];
-                for (const pattern of patterns) {
-                    const match = sample.match(pattern);
-                    if (match && match[1]) return match[1].replace(/\s+/g, ' ').trim();
-                }
-                return '';
-            }
-
-            async extractPDFText(file) {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-
-                const metadata = await pdf.getMetadata().catch(() => ({ info: {} }));
-                const info = metadata?.info || {};
-
-                let fullText = '';
-                for (let i = 1; i <= pdf.numPages; i++) {
-                    const page = await pdf.getPage(i);
-                    const content = await page.getTextContent();
-                    const pageText = content.items
-                        .map(item => item.str || '')
-                        .join(' ')
-                        .replace(/\s+/g, ' ')
-                        .trim();
-
-                    fullText += `\n[Página ${i}]\n${pageText}`;
-                    this.updateLoadingProgress(i, pdf.numPages);
-                }
-
-                return {
-                    text: fullText.trim(),
-                    title: this.normalizeMetadata(info.Title) || this.inferTitleFromFilename(file.name),
-                    author: this.normalizeMetadata(info.Author) || this.inferAuthorFromText(fullText),
-                    pageCount: pdf.numPages,
-                    pageCountType: 'exact',
-                    fileType: 'pdf',
-                    chapterCount: this.estimateChapters(fullText),
-                    wordCount: this.countWords(fullText)
-                };
-            }
-
-            async extractEPUBText(file) {
-                const arrayBuffer = await file.arrayBuffer();
-                const epub = ePub(arrayBuffer);
-                await epub.ready;
-
-                let title = '';
-                let author = '';
-                try {
-                    const metadata = epub.packaging?.metadata || epub.loaded?.metadata || {};
-                    title = this.normalizeMetadata(metadata.title);
-                    author = this.normalizeMetadata(metadata.creator || metadata.author);
-                } catch (e) {
-                    console.warn('No se pudieron leer los metadatos del ePub:', e);
-                }
-
-                let fullText = '';
-                const spineItems = epub.spine?.spineItems || [];
-
-                for (let i = 0; i < spineItems.length; i++) {
-                    const item = spineItems[i];
-                    const doc = await item.load(epub.load.bind(epub));
-                    if (doc) {
-                        const text = (doc.body?.innerText || doc.textContent || '')
-                            .replace(/\s+/g, ' ')
-                            .trim();
-                        if (text) fullText += `\n[Capítulo ${i + 1}]\n${text}`;
-                    }
-                    this.updateLoadingProgress(i + 1, spineItems.length);
-                }
-
-                // EPUB no tiene un número de páginas universal. Si el libro
-                // contiene un page-list, se usa; de lo contrario se estima
-                // a partir de unas 300 palabras por página.
-                let pageCount = 0;
-                try {
-                    const navigation = await epub.loaded?.navigation;
-                    const pageList = navigation?.pageList || [];
-                    if (pageList.length) pageCount = pageList.length;
-                } catch (e) {}
-
-                const wordCount = this.countWords(fullText);
-                if (!pageCount) pageCount = Math.max(1, Math.ceil(wordCount / 300));
-
-                return {
-                    text: fullText.trim(),
-                    title: title || this.inferTitleFromFilename(file.name),
-                    author: author || this.inferAuthorFromText(fullText),
-                    pageCount,
-                    pageCountType: 'estimated',
-                    fileType: 'epub',
-                    chapterCount: spineItems.length,
-                    wordCount
-                };
-            }
-
-            countWords(text) {
-                return (text || '').trim().split(/\s+/).filter(Boolean).length;
-            }
-
-            estimateChapters(text) {
-                const matches = (text || '').match(/(?:^|\\n)\\s*(?:capítulo|chapter)\\s+\\d+/gi);
-                return matches ? matches.length : 0;
-            }
-
-            updateLoadingProgress(current, total) {
-                const sub = document.getElementById('loadingSub');
-                if (sub && total) {
-                    sub.innerText = `Analizando página ${current} de ${total}...`;
-                }
-            }
-
-            async generateAIQuestions() {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book) return;
-
-                this.showLoading(
-                    'Creando preguntas con IA...',
-                    'La IA está leyendo el contenido del libro y preparando el cuestionario.'
-                );
-
-                try {
-                    const documentText = book.hasFile ? await getFileText(book.id) : '';
-                    if (!documentText || documentText.trim().length < 200) {
-                        throw new Error('Este libro no tiene suficiente texto. Importa un PDF o ePub con texto seleccionable.');
-                    }
-
-                    const response = await fetch('/api/generate-questions', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            title: book.title,
-                            author: book.author || '',
-                            text: documentText.slice(0, 80000),
-                            count: 12
-                        })
-                    });
-
-                    const payload = await response.json().catch(() => ({}));
-                    if (!response.ok) {
-                        throw new Error(payload.error || 'No se pudo conectar con la IA. Comprueba que el servidor esté iniciado.');
-                    }
-
-                    const questions = Array.isArray(payload.questions) ? payload.questions : [];
-                    if (!questions.length) throw new Error('La IA no devolvió preguntas. Inténtalo nuevamente.');
-
-                    this.tempGeneratedQuestions = questions.map((q, i) => ({
-                        id: 'ai_q_' + Date.now() + '_' + i,
-                        question: String(q.question || '').trim(),
-                        answer: String(q.answer || '').trim(),
-                        selected: true
-                    })).filter(q => q.question && q.answer);
-
-                    if (!this.tempGeneratedQuestions.length) throw new Error('La respuesta de la IA no tenía un formato válido.');
-                    this.hideLoading();
-                    this.openAIPreviewModal();
-                } catch (err) {
-                    console.error('Error generando preguntas con IA:', err);
-                    this.hideLoading();
-                    this.showToast(err.message || 'No se pudieron generar las preguntas.', 'error');
-                }
-            }
-
-            buildQuestionsFromText(text, book) {
-                const clean = text
-                    .replace(/\[Página \d+\]/gi, ' ')
-                    .replace(/\[Capítulo \d+\]/gi, ' ')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-
-                const sentences = clean
-                    .split(/(?<=[.!?])\s+/)
-                    .map(x => x.trim())
-                    .filter(x => x.length >= 50 && x.length <= 450);
-
-                const unique = [...new Set(sentences)];
-                const questions = [];
-
-                // 1. Preguntas de comprensión basadas directamente en oraciones
-                unique.slice(0, 8).forEach((sentence, index) => {
-                    const words = sentence.split(/\s+/);
-                    if (words.length < 10) return;
-
-                    const answer = sentence;
-                    const key = words.slice(0, Math.min(7, words.length)).join(' ');
-                    questions.push({
-                        question: `¿Qué idea o información importante presenta el texto en relación con «${key}…»?`,
-                        answer
-                    });
-                });
-
-                // 2. Personajes / entidades repetidas (heurística simple)
-                const entities = {};
-                const entityMatches = clean.match(/\b[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}(?:\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ]{2,}){0,2}\b/g) || [];
-                entityMatches.forEach(name => {
-                    if (!/^(El|La|Los|Las|Un|Una|Una|Capítulo|Chapter|Página|Page|Pero|Cuando|Como|Desde|Para|Por|Con|Este|Esta|Entonces)$/i.test(name)) {
-                        entities[name] = (entities[name] || 0) + 1;
-                    }
-                });
-
-                const topEntities = Object.entries(entities)
-                    .filter(([, count]) => count >= 2)
-                    .sort((a,b) => b[1] - a[1])
-                    .slice(0, 4)
-                    .map(([name]) => name);
-
-                topEntities.forEach(name => {
-                    const related = unique.find(s => new RegExp(`\\b${this.escapeRegExp(name)}\\b`, 'i').test(s));
-                    if (related) {
-                        questions.push({
-                            question: `¿Qué papel o importancia tiene «${name}» según el fragmento analizado?`,
-                            answer: related
-                        });
-                    }
-                });
-
-                // 3. Si hay pocas preguntas, usa fragmentos posteriores para evitar
-                // que todo el cuestionario dependa del comienzo del libro.
-                const fallbackStart = Math.floor(unique.length / 2);
-                unique.slice(fallbackStart, fallbackStart + 5).forEach(sentence => {
-                    if (questions.length >= 12) return;
-                    questions.push({
-                        question: '¿Qué hecho, concepto o relación relevante se puede identificar en este fragmento del libro?',
-                        answer: sentence
-                    });
-                });
-
-                return questions.slice(0, 12);
-            }
-
-            escapeRegExp(value) {
-                return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
-            openAIPreviewModal() {
-                const container = document.getElementById('aiQuestionsContainer');
-                if (this.tempGeneratedQuestions.length === 0) {
-                    container.innerHTML = '<p class="text-sm text-slate-500">No se generaron preguntas.</p>';
-                    return;
-                }
-
-                this.renderAIQuestionsPreview();
-                document.getElementById('aiPreviewModal').classList.remove('hidden');
-            }
-
-            closeAIPreviewModal() {
-                document.getElementById('aiPreviewModal').classList.add('hidden');
-            }
-
-            renderAIQuestionsPreview() {
-                const container = document.getElementById('aiQuestionsContainer');
-                const selectedCount = this.tempGeneratedQuestions.filter(q => q.selected).length;
-                document.getElementById('aiSelectedCount').innerText = `${selectedCount} de ${this.tempGeneratedQuestions.length} seleccionadas`;
-
-                container.innerHTML = this.tempGeneratedQuestions.map((q, idx) => `
-                    <div class="p-4 rounded-2xl border ${q.selected ? 'border-indigo-300 dark:border-indigo-700 bg-indigo-50/40 dark:bg-slate-900/80' : 'border-slate-200 dark:border-slate-700 opacity-60 bg-slate-50 dark:bg-slate-900'} space-y-2">
-                        <div class="flex items-center justify-between gap-2">
-                            <label class="flex items-center gap-2 cursor-pointer font-bold text-xs text-indigo-600 dark:text-indigo-400">
-                                <input type="checkbox" ${q.selected ? 'checked' : ''} onchange="app.toggleAIQuestionSelect(${idx})" class="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500">
-                                Pregunta ${idx + 1}
-                            </label>
-                        </div>
-                        <input type="text" value="${q.question.replace(/"/g, '&quot;')}" onchange="app.updateAIQuestionText(${idx}, 'question', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-medium dark:text-white">
-                        <textarea rows="2" onchange="app.updateAIQuestionText(${idx}, 'answer', this.value)" class="w-full px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs dark:text-slate-200">${q.answer}</textarea>
-                    </div>
-                `).join('');
-            }
-
-            toggleAIQuestionSelect(idx) {
-                this.tempGeneratedQuestions[idx].selected = !this.tempGeneratedQuestions[idx].selected;
-                this.renderAIQuestionsPreview();
-            }
-
-            updateAIQuestionText(idx, field, value) {
-                this.tempGeneratedQuestions[idx][field] = value;
-            }
-
-            saveAISelectedQuestions() {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book) return;
-
-                const selected = this.tempGeneratedQuestions.filter(q => q.selected);
-                if (selected.length === 0) {
-                    this.showToast('Selecciona al menos una pregunta', 'error');
-                    return;
-                }
-
-                if (!book.questions) book.questions = [];
-                selected.forEach(q => {
-                    book.questions.push({
-                        id: 'q_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-                        question: q.question,
-                        answer: q.answer
-                    });
-                });
-
-                this.saveToLocalStorage();
-                this.closeAIPreviewModal();
-                this.showToast(`${selected.length} preguntas guardadas`);
-                this.showBookDetail(book.id);
-            }
-
-            openQuestionModal(qId = null) {
-                document.getElementById('qIdInput').value = qId || '';
-                if (qId) {
-                    const book = this.books.find(b => b.id === this.activeBookId);
-                    const q = (book.questions || []).find(item => item.id === qId);
-                    if (q) {
-                        document.getElementById('qQuestionInput').value = q.question;
-                        document.getElementById('qAnswerInput').value = q.answer;
-                        document.getElementById('questionModalTitle').innerText = 'Editar Pregunta';
-                    }
-                } else {
-                    document.getElementById('qQuestionInput').value = '';
-                    document.getElementById('qAnswerInput').value = '';
-                    document.getElementById('questionModalTitle').innerText = 'Añadir Pregunta';
-                }
-                document.getElementById('questionModal').classList.remove('hidden');
-            }
-
-            closeQuestionModal() {
-                document.getElementById('questionModal').classList.add('hidden');
-            }
-
-            saveManualQuestion(e) {
-                e.preventDefault();
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book) return;
-
-                const qId = document.getElementById('qIdInput').value;
-                const question = document.getElementById('qQuestionInput').value.trim();
-                const answer = document.getElementById('qAnswerInput').value.trim();
-
-                if (!book.questions) book.questions = [];
-
-                if (qId) {
-                    const q = book.questions.find(item => item.id === qId);
-                    if (q) {
-                        q.question = question;
-                        q.answer = answer;
-                    }
-                } else {
-                    book.questions.push({
-                        id: 'q_' + Date.now(),
-                        question,
-                        answer
-                    });
-                }
-
-                this.saveToLocalStorage();
-                this.closeQuestionModal();
-                this.showToast('Pregunta guardada');
-                this.showBookDetail(book.id);
-            }
-
-            deleteQuestion(qId) {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book) return;
-
-                book.questions = (book.questions || []).filter(q => q.id !== qId);
-                this.saveToLocalStorage();
-                this.showToast('Pregunta eliminada');
-                this.showBookDetail(book.id);
-            }
-
-            startStudyMode() {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book || !book.questions || book.questions.length === 0) {
-                    this.showToast('No hay preguntas para estudiar', 'error');
-                    return;
-                }
-
-                this.studyState = {
-                    cards: [...book.questions],
-                    currentIdx: 0,
-                    isFlipped: false,
-                    correctCount: 0
-                };
-
-                document.getElementById('bookDetailView').classList.add('hidden');
-                document.getElementById('studyView').classList.remove('hidden');
-
-                this.renderCurrentStudyCard();
-            }
-
-            renderCurrentStudyCard() {
-                const { cards, currentIdx } = this.studyState;
-                if (currentIdx >= cards.length) {
-                    // Study Finished
-                    this.showStudyCompletion();
-                    return;
-                }
-
-                const card = cards[currentIdx];
-                document.getElementById('studyCurrentIdx').innerText = currentIdx + 1;
-                document.getElementById('studyTotalCount').innerText = cards.length;
-                document.getElementById('studyProgressBar').style.width = `${((currentIdx) / cards.length) * 100}%`;
-
-                document.getElementById('cardQuestionText').innerText = card.question;
-                document.getElementById('cardAnswerText').innerText = card.answer;
-
-                // Reset flip
-                this.studyState.isFlipped = false;
-                document.getElementById('flashcardInner').classList.remove('rotate-y-180');
-            }
-
-            flipStudyCard() {
-                this.studyState.isFlipped = !this.studyState.isFlipped;
-                const inner = document.getElementById('flashcardInner');
-                if (this.studyState.isFlipped) {
-                    inner.classList.add('rotate-y-180');
-                } else {
-                    inner.classList.remove('rotate-y-180');
-                }
-            }
-
-            answerStudyCard(knewIt) {
-                if (knewIt) this.studyState.correctCount++;
-                this.studyState.currentIdx++;
-                this.renderCurrentStudyCard();
-            }
-
-            showStudyCompletion() {
-                const total = this.studyState.cards.length;
-                const score = Math.round((this.studyState.correctCount / total) * 100);
-
-                this.showToast(`¡Sesión completada! Aciertos: ${score}%`);
-                this.showBookDetail(this.activeBookId);
-            }
-
-            async openReaderModal() {
-                const book = this.books.find(b => b.id === this.activeBookId);
-                if (!book || !book.hasFile) return;
-
-                this.showLoading('Cargando documento...', 'Recuperando texto almacenado');
-                const text = await getFileText(book.id);
-                this.hideLoading();
-
-                document.getElementById('readerTitle').innerText = `Lector: ${book.title} — ${book.author || "Autor desconocido"}`;
-                document.getElementById('readerContent').innerText = text || 'No se pudo cargar el contenido del archivo.';
-                document.getElementById('readerModal').classList.remove('hidden');
-            }
-
-            closeReaderModal() {
-                document.getElementById('readerModal').classList.add('hidden');
-            }
-        }
-
-        let app;
-        window.addEventListener('DOMContentLoaded', () => {
-            app = new BookMindApp();
-            app.init();
-        });
-    </script>
-</body>
+        <div class="dialog-footer"><span class="form-hint">Se guarda automáticamente en este dispositivo.</span><button class="primary-button" type="submit" id="book-submit">Guardar libro</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog profile-dialog" id="profile-dialog" aria-labelledby="profile-dialog-title">
+      <form id="profile-form">
+        <div class="dialog-header"><div><div class="eyebrow"><span class="eyebrow-line"></span> TU ESPACIO BOOKMIND</div><h2 id="profile-dialog-title">Crear perfil local</h2></div><button class="icon-button close-button" type="button" data-close="profile-dialog" aria-label="Cerrar">×</button></div>
+        <label class="field">Nombre<input id="profile-input-name" name="name" required maxlength="60" autocomplete="name" placeholder="Tu nombre"></label>
+        <label class="field profile-email-field">Correo electrónico <span class="optional-label">OPCIONAL</span><input id="profile-input-email" name="email" type="email" maxlength="120" autocomplete="email" placeholder="nombre@correo.com"></label>
+        <p class="account-note">Tu perfil y biblioteca se guardan en este navegador. BookMind no tiene cuentas en línea ni sincronización entre dispositivos.</p>
+        <div class="dialog-footer"><span class="form-hint">La biblioteca se guarda automáticamente.</span><button class="primary-button" type="submit" id="profile-submit">Guardar perfil</button></div>
+      </form>
+    </dialog>
+
+    <dialog class="app-dialog question-dialog" id="question-dialog" aria-labelledby="question-dialog-title">
+      <form id="question-form">
+        <div class="dialog-header"><div><div class="eyebrow"><span class="eyebrow-line"></span> FICHA DE ESTUDIO</div><h2 id="question-dialog-title">Nueva pregunta</h2></div><button class="icon-button close-button" type="button" data-close="question-dialog" aria-label="Cerrar">×</button></div>
+        <input type="hidden" id="question-book-id"><input type="hidden" id="question-id">
+        <label class="field">Pregunta<textarea id="question-text" required maxlength="300" rows="3" placeholder="¿Qué quieres recordar?"></textarea></label>
+        <label class="field answer-field">Respuesta<textarea id="answer-text" required maxlength="800" rows="4" placeholder="Escribe la respuesta con tus palabras..."></textarea></label>
+        <div class="dialog-footer"><span class="form-hint">Edita la pregunta generada desde el texto del libro.</span><button class="primary-button" type="submit">Guardar cambios</button></div>
+      </form>
+    </dialog>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  </body>
 </html>
